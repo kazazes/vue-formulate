@@ -49,37 +49,33 @@
   </ul>
 </template>
 
-<script>
-import FileUpload from './FileUpload'
+<script lang="ts">
+  import { Component, Prop, Watch, Vue } from "vue-property-decorator";
+  import FileUpload from "./FileUpload";
 
-export default {
-  name: 'FormulateFiles',
-  props: {
-    files: {
-      type: FileUpload,
-      required: true
-    },
-    imagePreview: {
-      type: Boolean,
-      default: false
+  @Component({
+    name: "FormulateFiles",
+
+  })
+  export default class FormulateFiles extends Vue {
+    @Prop({ type: FileUpload, required: true }) files!: FileUpload;
+    @Prop({ type: Boolean, default: () => false }) imagePreview!: boolean;
+
+    get fileUploads() {
+      return this.files.files || [];
     }
-  },
-  computed: {
-    fileUploads () {
-      return this.files.files || []
-    }
-  },
-  watch: {
-    files () {
+
+    @Watch("files", { deep: true })
+    fileChanged() {
       if (this.imagePreview) {
-        this.files.loadPreviews()
+        this.files.loadPreviews();
       }
     }
-  },
-  mounted () {
-    if (this.imagePreview) {
-      this.files.loadPreviews()
+
+    mounted() {
+      if (this.imagePreview) {
+        this.files.loadPreviews();
+      }
     }
   }
-}
 </script>

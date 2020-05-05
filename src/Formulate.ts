@@ -1,5 +1,5 @@
 import library from './libs/library'
-import rules from './libs/rules'
+import rules, { Rule, Rules } from "./libs/rules";
 import mimes from './libs/mimes'
 import FileUpload from './FileUpload'
 import { arrayify, parseLocale } from './libs/utils'
@@ -17,16 +17,37 @@ import FormulateInputButton from './inputs/FormulateInputButton.vue'
 import FormulateInputSelect from './inputs/FormulateInputSelect.vue'
 import FormulateInputSlider from './inputs/FormulateInputSlider.vue'
 import FormulateInputTextArea from './inputs/FormulateInputTextArea.vue'
+import  {Component} from "vue";
+import { Context } from "./libs/context";
+import {Vue} from "vue-property-decorator";
 
 /**
  * The base formulate library.
  */
 class Formulate {
+  private options: {
+    uploader: string;
+    uploadUrl?: string;
+    locales: any;
+    fileUrlKey: string;
+    rules?: Rules;
+    components?: any;
+    locale?: string;
+    library?: { [key: string]: any };
+    idPrefix?: any;
+    errorHandler: (err: any, formName: string) => any
+  };
+  private readonly defaults: any;
+  private registry: Map<any, any>;
+  private idRegistry: any;
+  selectedLocale: any
   /**
    * Instantiate our base options.
    */
   constructor () {
-    this.options = {}
+    this.options = {
+      errorHandler(err: any, formName: string): any {
+      }, fileUrlKey: "", locales: undefined, library: {}}
     this.defaults = {
       components: {
         FormulateForm,
@@ -49,7 +70,7 @@ class Formulate {
       uploadUrl: false,
       fileUrlKey: 'url',
       uploadJustCompleteDuration: 1000,
-      errorHandler: (err) => err,
+      errorHandler: (err: any) => err,
       plugins: [ en ],
       locales: {},
       idPrefix: 'formulate-'
@@ -61,16 +82,17 @@ class Formulate {
   /**
    * Install vue formulate, and register it’s components.
    */
-  install (Vue, options) {
-    Vue.prototype.$formulate = this
+  install (Vue: Vue, options) {
+    Vue.$formulate = this
     this.options = this.defaults
     var plugins = this.defaults.plugins
     if (options && Array.isArray(options.plugins) && options.plugins.length) {
       plugins = plugins.concat(options.plugins)
     }
-    plugins.forEach(plugin => (typeof plugin === 'function') ? plugin(this) : null)
+    plugins.forEach((plugin: (arg0: this) => any) => (typeof plugin === 'function') ? plugin(this) : null)
     this.extend(options || {})
-    for (var componentName in this.options.components) {
+    for (let componentName in this.options.components) {
+
       Vue.component(componentName, this.options.components[componentName])
     }
   }
@@ -81,7 +103,7 @@ class Formulate {
    * However, SSR and deterministic ids can be very challenging, so this
    * implementation is open to community review.
    */
-  nextId (vm) {
+  nextId (vm: { $route: { path: string } }) {
     const path = vm.$route && vm.$route.path || false
     const pathPrefix = path ? vm.$route.path.replace(/[\/\\.\s]/g, '-') : 'global';
     if (!Object.prototype.hasOwnProperty.call(this.idRegistry, pathPrefix)) {
@@ -94,7 +116,7 @@ class Formulate {
    * Given a set of options, apply them to the pre-existing options.
    * @param {Object} extendWith
    */
-  extend (extendWith) {
+  extend (extendWith: any) {
     if (typeof extendWith === 'object') {
       this.options = this.merge(this.options, extendWith)
       return this
@@ -110,10 +132,10 @@ class Formulate {
    * @param {Object} mergeWith
    * @param {boolean} concatArrays
    */
-  merge (base, mergeWith, concatArrays = true) {
-    var merged = {}
-    for (var key in base) {
-      if (mergeWith.hasOwnProperty(key)) {
+  merge (base: any, mergeWith: any, concatArrays = true) {
+    let merged: any = {};
+    for (let key in base) {
+      if (base.hasOwnProperty(key) && mergeWith.hasOwnProperty(key)) {
         if (isPlainObject(mergeWith[key]) && isPlainObject(base[key])) {
           merged[key] = this.merge(base[key], mergeWith[key], concatArrays)
         } else if (concatArrays && Array.isArray(base[key]) && Array.isArray(mergeWith[key])) {
@@ -125,8 +147,8 @@ class Formulate {
         merged[key] = base[key]
       }
     }
-    for (var prop in mergeWith) {
-      if (!merged.hasOwnProperty(prop)) {
+    for (let prop in mergeWith) {
+      if (mergeWith.hasOwnProperty(prop) && !merged.hasOwnProperty(prop)) {
         merged[prop] = mergeWith[prop]
       }
     }
@@ -137,8 +159,8 @@ class Formulate {
    * Determine what "class" of input this element is given the "type".
    * @param {string} type
    */
-  classify (type) {
-    if (this.options.library.hasOwnProperty(type)) {
+  classify (type: string) {
+    if (this.options.library && this.options.library.hasOwnProperty(type)) {
       return this.options.library[type].classification
     }
     return 'unknown'
@@ -148,8 +170,8 @@ class Formulate {
    * Determine what type of component to render given the "type".
    * @param {string} type
    */
-  component (type) {
-    if (this.options.library.hasOwnProperty(type)) {
+  component (type: string) {
+    if (this.options.library && this.options.library.hasOwnProperty(type)) {
       return this.options.library[type].component
     }
     return false
@@ -166,7 +188,8 @@ class Formulate {
   /**
    * Attempt to get the vue-i18n configured locale.
    */
-  i18n (vm) {
+  i18n (vm: Vue) {
+    if (!vm.$i18n) return false;
     if (vm.$i18n && vm.$i18n.locale) {
       return vm.$i18n.locale
     }
@@ -176,7 +199,7 @@ class Formulate {
   /**
    * Select the proper locale to use.
    */
-  getLocale (vm) {
+  getLocale (vm: Component) {
     if (!this.selectedLocale) {
       this.selectedLocale = [
         this.options.locale,
@@ -188,7 +211,7 @@ class Formulate {
         }
         if (locale) {
           const option = parseLocale(locale)
-            .find(locale => Object.prototype.hasOwnProperty.call(this.options.locales, locale))
+            .find((locale: string | number | symbol) => Object.prototype.hasOwnProperty.call(this.options.locales, locale))
           if (option) {
             selection = option
           }
@@ -202,7 +225,7 @@ class Formulate {
   /**
    * Get the validation message for a particular error.
    */
-  validationMessage (rule, validationContext, vm) {
+  validationMessage (rule: any, validationContext:any, vm: Component) {
     const generators = this.options.locales[this.getLocale(vm)]
     if (generators.hasOwnProperty(rule)) {
       return generators[rule](validationContext)
@@ -219,7 +242,7 @@ class Formulate {
    * Given an instance of a FormulateForm register it.
    * @param {vm} form
    */
-  register (form) {
+  register (form: FormulateForm) {
     if (form.$options.name === 'FormulateForm' && form.name) {
       this.registry.set(form.name, form)
     }
@@ -229,7 +252,7 @@ class Formulate {
    * Given an instance of a form, remove it from the registry.
    * @param {vm} form
    */
-  deregister (form) {
+  deregister (form: FormulateForm) {
     if (
       form.$options.name === 'FormulateForm' &&
       form.name &&
@@ -245,9 +268,9 @@ class Formulate {
    *
    * @param {error} err
    * @param {string} formName
-   * @param {error}
+   * @param skip
    */
-  handle (err, formName, skip = false) {
+  handle (err: any, formName: string, skip: boolean = false) {
     const e = skip ? err : this.options.errorHandler(err, formName)
     if (formName && this.registry.has(formName)) {
       this.registry.get(formName).applyErrors({
@@ -283,7 +306,7 @@ class Formulate {
   /**
    * Create a new instance of an upload.
    */
-  createUpload (fileList, context) {
+  createUpload (fileList: FileList, context: Context) {
     return new FileUpload(fileList, context, this.options)
   }
 }

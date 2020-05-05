@@ -1,16 +1,28 @@
 import nanoid from 'nanoid/non-secure'
+import FormulateFiles from "./FormulateFiles.vue";
+
+interface FormulateFile extends File {
+  previewData: string;
+}
 
 /**
  * The file upload class holds and represents a file’s upload state durring
  * the upload flow.
  */
 class FileUpload {
+  private input: any;
+  private fileList: FileList;
+  private context: any;
+  private results: any[] | boolean;
+  private options: { mimes: {[key:string]: string}, [key: string]: any };
+  files: any[];
   /**
    * Create a file upload object.
-   * @param {FileList} fileList
+   * @param input
    * @param {object} context
+   * @param options
    */
-  constructor (input, context, options = {}) {
+  constructor (input: any, context:any, options = {}) {
     this.input = input
     this.fileList = input.files
     this.files = []
@@ -29,7 +41,7 @@ class FileUpload {
    * @param {array} items expects an array of objects [{ url: '/uploads/file.pdf' }]
    * @param {string} pathKey the object-key to access the url (defaults to "url")
    */
-  rehydrateFileList (items) {
+  rehydrateFileList (items: any[]) {
     const fauxFileList = items.reduce((fileList, item) => {
       const key = this.options ? this.options.fileUrlKey : 'url'
       const url = item[key]
@@ -48,13 +60,13 @@ class FileUpload {
 
   /**
    * Produce an array of files and alert the callback.
-   * @param {FileList}
+   * @param fileList
    */
-  addFileList (fileList) {
+  addFileList (fileList: FileList) {
     for (let i = 0; i < fileList.length; i++) {
       const file = fileList[i]
       const uuid = nanoid()
-      const removeFile = function () {
+      const rmFile = function (this: any) {
         this.removeFile(uuid)
       }
       this.files.push({
@@ -66,8 +78,8 @@ class FileUpload {
         file,
         uuid,
         path: false,
-        removeFile: removeFile.bind(this),
-        previewData: file.previewData || false
+        removeFile: rmFile.bind(this),
+        previewData: (file as FormulateFile).previewData || false
       })
     }
   }
@@ -185,7 +197,7 @@ class FileUpload {
     this.files.map(file => {
       if (!file.previewData && window && window.FileReader && /^image\//.test(file.file.type)) {
         const reader = new FileReader()
-        reader.onload = e => Object.assign(file, { previewData: e.target.result })
+        reader.onload = (e: ProgressEvent<FileReader>) => { if (e.target) Object.assign(file, { previewData: e.target.result })}
         reader.readAsDataURL(file.file)
       }
     })

@@ -12,7 +12,7 @@
   </ul>
 </template>
 
-<script>
+<script lang="ts">
 import { arrayify } from './libs/utils'
 
 export default {
